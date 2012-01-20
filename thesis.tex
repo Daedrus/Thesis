@@ -1,0 +1,42 @@
+% Most of these belong in a .cls file
+
+\documentclass[pdftex,12pt,a4paper]{report}
+
+\usepackage[pdftex]{graphicx}
+\usepackage{fancyhdr}
+\usepackage[colorlinks=true,linkcolor={black}]{hyperref}
+\usepackage{amsmath, amsthm, amssymb}
+\usepackage{indentfirst}
+\usepackage{multirow}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+
+\pagestyle{fancy}
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+
+\begin{document}
+
+\pagenumbering{roman}
+
+\input{src/base/title}
+
+\input{src/base/acknowledgements}
+
+\input{src/base/abstract}
+
+\input{src/base/contents}
+
+\lhead{\bfseries Master thesis draft - Andrei Faur}
+\chead{}
+\rhead{\thepage}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\pagenumbering{arabic}
+
+\input{src/main}
+
+\end{document}
