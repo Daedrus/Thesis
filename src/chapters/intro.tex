@@ -1,10 +1,28 @@
 \chapter{Introduction}
 \label{chapter:intro}
 
-\textbf{So it begins...}\\
+	% Intro
+	In large and complex programs such as web browsers, word processors, enterprise software and most modern popular tools, it is not trivial to map memory usage to responsible subsystems. The high number of such subsystems (e.g. in a web browser: page loading, ECMAScript, DOM, HTML Layout and Rendering), their interaction and their different memory requirements make such an analysis difficult. Several memory allocators might be used, depending on each subsystem's requirements. For example, one part of the software might need quick access to a large number of small, fixed-size chunks of memory. An allocator that caters to that need could improve performance and therefore be used. Different platforms have different ways of organizing memory which cannot be ignored if detailed memory consumption information is required. This diversity, coupled with the sheer size of modern software's codebase (millions of lines of code) excludes any trivial solutions.
 
-\newpage
+	% Benefits
+	Having memory usage information available can lead to improvements in subsystems that exhibit constant high memory consumption and could potentially lead to bug discovery in subsystems which show temporary memory usage spikes or unusual memory consumption patterns. In addition, having detailed memory tracking logs from different instances of a piece of software running on diverse platforms could lead to platform specific optimizations. 
 
-\textbf{And so it continues...}\\
+	% Methods
+	Monitoring the way memory management is performed by a piece of software involves, among others, heap profiling, real-time fragmentation visualization, allocation and deallocation performance, overallocation detection and memory leak detection; all of this information should presented for each of the software's subsystems as well as at a global level. The user of this information should have access to detailed information related to the allocation site which exhibited unusual behaviour, such as: module membership, stack traces and exact size of memory allocated at the site. Each of the previously mentioned issues present problems on their own:
+\begin{itemize}
+\item heap profiling requires detailed information on how allocations are performed: by whom, exact size, possible stack traces
+\item measuring allocation and deallocation performance requires keeping track of time
+\item fragmentation visualization must keep track of the exact layout of the heap and have in-depth knowledge of how allocators use it
+\item overallocation and memory leak detection involve checking every memory access
+\end{itemize}
 
-\textbf{Det funkar på svenska också! öåöäöåöäöåä}\\
+	% Issues
+	The main problem is that any sort of measurement automatically reduces the piece's of software speed either through added code or by running it in a special environment. The challenge is to thus create or use a tool that is as noninvasive as possible and has minimal impact on speed so that it can be deployed in default installations. Even though the above issues have a common goal, which is to describe memory from a certain point of view, they do exhibit different requirements: if we are not interested in time performance we do not need to worry about time, therefore removing the overhead of timer management; simple heap profiling needs no knowledge of the heap layout and so on. Having a tool which performs all of the above, and do so in a way that does not affect performance at all is unlikely, given the fact that there exist separate current state of the art tools and methods for each of the above and each of them has a negative impact on performance.
+
+	% Solutions
+	This thesis concerns itself primarily with heap profiling with the added constraint of good real-time performance. The goal is obtaining a solution which gives us detailed information about heap usage and possibly the chain of events which lead to a given state of the heap. We are interested in determining the following:
+\begin{itemize}
+\item how heavily classes/modules are using the heap (\textit{how much memory they allocate})
+\item the exact way in which they are using it (\textit{which methods are responsible for allocations})
+\item how they interacted with each other (\textit{what are the call chains that lead to the allocations}).
+\end{itemize}
