@@ -1,5 +1,20 @@
 \chapter{Memory Management Concepts}
 \label{chapter:memmgmt}
 
-\textbf{And so it continues...}\\
+Throughout the lifetime of a process its memory requirements change. Whether the process has to create more objects or allocate arrays or even temporary variables, it has to have a way of requesting more memory and a way to release that memory when it is no longer needed. Since our purpose is to actively monitor the exact memory consumption of a process \footnote{For simplicity, let us assume that the piece of software we are interested in monitoring runs only in one process.}, the underlying mechanisms of memory allocation and deallocation are of direct interest.  This chapter explains these mechanisms and explains how each of them are relevant to our original goals of finding out how much memory a process consumes and how different parts of that process interact with each other to reach that specific memory consumption state.
 
+\newpage
+
+\section{Virtual Memory}
+\label{section:virtmem}
+
+
+
+\section{Memory Layout}
+\label{section:memlayout}
+
+\section{The heap}
+\label{section:heap}
+
+\section{The stack}
+\label{section:stack}
