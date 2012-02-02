@@ -8,7 +8,7 @@ Throughout the lifetime of a process its memory requirements change. Whether the
 \section{Virtual Memory}
 \label{section:virtmem}
 
-
+Virtual memory is a mechanism used by modern operating systems in order to give processes the illusion that there exists only one type of memory in the system which exhibits the behaviour of a directly addressable read/write memory. In addition, most operating systems run processes in separate address spaces providing the impression that processes have exclusive access to the virtual memory \footnote{there exist operating systems which use a single global address space, such as OS/VS1 and IBM i, but they still include mechanisms by which processes are stopped from accessing each other's addresses}. This is accomplished by the operating system by avoiding the direct use of physical addresses and instead making processes use logical addresses which then get translated by the operating system and the memory management unit into physical addresses. Figure X shows a system with several processes and their address spaces and the way they are mapped to physical memory and other devices.
 
 \section{Memory Layout}
 \label{section:memlayout}
