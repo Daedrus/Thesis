@@ -12,6 +12,9 @@ thesis.pdf: images
 images:
 	epstopdf $(IMG_DIR)/LinkUniv_sigill.eps
 	epstopdf $(IMG_DIR)/LinkUniv_staende.eps
+	epstopdf $(IMG_DIR)/virtmem.eps
+	epstopdf $(IMG_DIR)/virtmemlayout.eps
+	epstopdf $(IMG_DIR)/stacklayout.eps
 
 .PHONY: clean-tmp
 clean-tmp:
