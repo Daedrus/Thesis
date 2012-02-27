@@ -1,5 +1,152 @@
-\chapter{Method comparison}
-\label{chapter:metcomp}
+\chapter{Methods}
+\label{chapter:methods}
 
-\textbf{And so it continues...}\\
+In this chapter we will focus on the description of methods used in obtaining dynamic memory allocation information. We will start by presenting approaches used by profilers in general and see how these are applicable to memory profiling in particular. Given the fact that we are concerned in both the size and the locations of memory allocations and since these two involve different approaches, we will present different methods of obtaining relevant information separately for these two. Finally, a test program and the platform on which it was run will be described, upon which all these methods will be tested. This will provide a good performance reference in order to determine the overhead the memory profiling techniques induce.
 
+\section{Profiling methods}
+\label{section:profilingmethods}
+
+Profiling definition.
+
+In this section we will describe the most common techniques used for profiling today. Some of these techniques do not target memory profiling specifically, but nevertheless they can be used for this purpose.
+
+Types of profiling + short description for each.
+
+mprof.pdf [Memory allocation profiler for C and LISP]
+
+p28-kumar.pdf [Low overhead program monitoring and Profiling]
+
+science.pdf [Efficient dynamic program monitoring on multi-core systems]
+
+zhao-cgo07-umi.pdf [Ubiquitous memory introspection]
+
+10.1.1.104.4146.pdf [Dise: A Programmable Macro Engine for Customizing Applications]
+
+shetty\_ibmpac04.pdf [HeapMon: memory bug detector]
+
+WRL-94-2.pdf [ATOM, system for implementing customized program analysis tools]
+
+paper.pdf [gprof - a call graph execution profiler]
+
+wenke.pdf [Framework for instruction-level tracing and analysis of program executions]
+
+Continuous profiling: where have all the cycles gone (paywalled, have to check liu online library)
+System support for automatic profiling and optimizatins: paywalled
+
+\subsection{Code instrumentation}
+\label{subsection:codeinstrumentation}
+
+Definition of instrumentation in general.
+
+Types of instrumentation + description for each of them.
+
+Give examples of tools and how they work.
+
+valgrind2007.pdf [How Valgrind works]
+
+shadow-memory.pdf [How to shadow every byte of memory]
+
+a5-venkataramani.pdf [MemTracker, tool based on PIN]
+
+interact-9\_IEEE\_23210082 [Automatic Low overhead instrumentation using the LOPI Framework]
+
+Tamches99FineGrained.pdf [Fine-grained dynamic instrumentation of kernels]
+
+apiPreprint.pdf [An API for Runtime Code Patching]
+
+phd2004.pdf [Nethercote dynamic instrumentation phd]
+
+derek-phd-thesis [Efficient, transparent, comprehensive runtime code manipulation]
+
+dtrace\_usenix [Dynamic instrumentation of production systems]
+
+10.1.1.85.4883 [PIN, building customized program analysis tools with dynamic instrumentation]
+
+VEE2006.pdf [HDTrans, low-leve dynamic instrumentation system]
+
+Reversible debugging using program instrumentation - paywalled
+
+\subsection{Statistical profiling}
+\label{subsection:statisticalprofiling}
+
+Definition of statistical profiling.
+
+How it works.
+
+Examples of tools.
+
+swat\_asplos\_final.pdf [Leak detection using statistical profiling]
+
+dcs-tr-424.pdf [Reducing the cost of instrumented code]
+
+\subsection{Performance counters}
+\label{subsection:performancecounters}
+
+What they are, how they are used. Examples from modern x86 architectures maybe. Oprofile et. al.
+
+pap182.pdf [Memory profiling using hardware counters.]
+
+papi-ugc2001.pdf [PAPI cross-platform interface to hardware performance counters]
+
+\subsubsection{Hardware-assisted profiling}
+\label{subsubsection:hardwareassistedprofiling}
+
+Not the same as performance counters. This one actually uses dedicated hardware to monitor different stuff rather than simple counters.
+
+venkataramani\_hpca07.pdf [hardware for memory access monitoring and debugging]
+
+LBA\_ISCA08.pdf [Flexible Hardware Acceleration for Instruction-Grain Program Monitoring]
+
+LBA\_asid2006.pdf [Log-Based architectures for general-purpose monitoring of deployed code]
+
+tacodec04.pdf [Architectural support for dynamic monitoring]
+
+profiler.hpca.pdf [A programmable co-processor for profiling]
+
+\subsection{Event-based profiling}
+\label{subsection:eventbasedprofiling}
+
+Events are triggered either through software or hardware exceptions. Give examples of how these might be used.
+
+\section{Heap profiling}
+\label{section:heapprofiling}
+
+\subsection{Allocation size profiling}
+\label{subsubsection:allocationsizeprofiling}
+
+\subsubsection{Overriding memory allocation routines}
+\label{subsubsection:overridingroutines}
+
+Describe manual overriding and the overriding that Valgrind does
+
+huntusenixnt99.pdf [Binary intercetpion of Windows functions]
+
+ispass10.pdf [Dynamic program analysis in Windows]
+
+iiswc2006.pdf [Valgrind tool develpoment]
+
+\subsubsection{On-demand memory tracking}
+\label{subsubsection:ondemandtracking}
+
+Describe counter-based and traversal-based methods
+
+\subsection{Allocation point profiling}
+\label{subsection:allocationpointprofiling}
+
+pldi95\_ele.ps [Machine independent executable editing]
+
+\subsubsection{Manual stack traversal}
+\label{subsubsection:manualstacktraversal}
+
+AuthoringStackWalkerForX86.pdf
+
+\subsubsection{Low overhead tracepoints}
+\label{subsubsection:lowoverheadtracepoints}
+
+fastbreak.pdf [Fast breakpoint implementation]
+
+\subsubsection{Global stack object}
+\label{subsubsection:globalstackobject}
+
+\section{Test program description}
+\label{section:testprogram}
