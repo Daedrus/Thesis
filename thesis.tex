@@ -8,6 +8,7 @@
 \usepackage{amsmath, amsthm, amssymb}
 \usepackage{indentfirst}
 \usepackage{multirow}
+\usepackage{todonotes}
 \usepackage[english]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage{listings}
@@ -62,5 +63,10 @@
 \pagenumbering{arabic}
 
 \input{src/main}
+
+\clearpage
+\addcontentsline{toc}{chapter}{Bibliography}
+\bibliographystyle{plain}
+\bibliography{src/base/references}
 
 \end{document}

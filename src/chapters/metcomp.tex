@@ -30,6 +30,10 @@ paper.pdf [gprof - a call graph execution profiler]
 
 wenke.pdf [Framework for instruction-level tracing and analysis of program executions]
 
+dynamopldi.pdf [Dynamo optimization system]
+
+10.1.1.90.5250 [Optimally profiling and tracing programs]
+
 Continuous profiling: where have all the cycles gone (paywalled, have to check liu online library)
 System support for automatic profiling and optimizatins: paywalled
 
@@ -111,27 +115,57 @@ Events are triggered either through software or hardware exceptions. Give exampl
 \section{Heap profiling}
 \label{section:heapprofiling}
 
+In section \ref{section:memlayout} we have presented the typical layout of a program after it has been loaded into memory. While in modern programs there exist a lot more sections than the ones described, the heap is usually the one where most of the allocations are done. Thus, we will not concern ourselves with the other sections because their size is pre-determined from compile time and they do not suffer modifications during run-time. In this subchapter we will present different methods of determining the size and the point in the program where allocations on the heap are performed.
+
 \subsection{Allocation size profiling}
 \label{subsubsection:allocationsizeprofiling}
 
-\subsubsection{Overriding memory allocation routines}
+The first problem we want to solve is the problem of determining the total size of all the data that exists on the heap. More specifically, we want to be able to answer one of our original questions: how much memory have the classes/modules allocated on the heap?
+
+\subsubsection{Overloading memory allocation routines}
 \label{subsubsection:overridingroutines}
 
-Describe manual overriding and the overriding that Valgrind does
+A first solution to keeping track of all the allocations that a program has done is to overload the routines that do the allocations. By doing this, we can insert our own code in the routines, code which allows us to manipulate the allocation information in any way we want. The routines which have to be overloaded are the same ones presented in section \ref{section:heap}.
 
-huntusenixnt99.pdf [Binary intercetpion of Windows functions]
+There are several problems with this approach, one of them related to the actual implementation of the mechanism. Overloading the routines means replacing them with our own while keeping the functionality intact. This has to be done in a way that is transparent to the running program and has very little overhead, preferably none. Different approaches exist:
+\begin{itemize}
+\item The \textit{new} and \textit{delete} operators can be overridden globally through language constructs provided by C++ itself. By looking at the way these two operators are implemented in the standard C++ library, one could provide an implementation that is identical but also provides additional profiling code.
+\item For the \textit{malloc}, \textit{realloc} and \textit{free} routines, GCC provides hooks which allows their behaviour to be modified. These hooks are actually variables declared in malloc.h : \_\_malloc\_hook, \_\_realloc\_hook, \_\_free\_hook, \_\_memalign\_hook. All of these can point to independent routines which are called whenever the original allocation routines are called. These routines' signature contains a caller parameter which is the return address found on the stack when the allocation routines were called, thus allowing allocation point tracking\cite{GCCman}. The downside with using this method is that it is GCC specific, so if other compilers are used then either a similar mechanism has to exist for them or this approach does not work.
+\item A separate library providing implementations for all the C-level allocation routines can be used. Since \textit{new} and \textit{delete} are also using these, they will also be taken into account, thus covering the whole range. This library can then be linked with the original program in such a way that the overloaded routines are used instead of the ones provided by the standard library. This is the approach that Valgrind uses, by exporting symbols which take precedence over the ones in glibc.so\cite{Seward02}. While it does have the benefit of being unintrusive it still is dependant on the build system, especially on the linker used.
+\item Another solution is to provide wrappers for the allocation routines, which will be used instead of the original ones. The downside to this is that it is very intrusive since all of the original calls have to be replaced with calls to the wrappers. Tools that do this replacement automatically can be used.
+\end{itemize}
 
-ispass10.pdf [Dynamic program analysis in Windows]
-
-iiswc2006.pdf [Valgrind tool develpoment]
+Hunt and Brubacher\cite{Hunt99} classify techniques of intercepting function calls on Windows into four categories:
+\begin{itemize}
+\item \textit{Call replacement in application source code} - All of the above, except for the one involving providing a separate library fit into this category.
+\item \textit{Call replacement in application binary code} - By using symbolic information call sites are identified and jump code to profiling routines can be inserted
+\item \textit{DLL redirection} - Similar to using a separate library, the internals of this technique are Windows-specific
+\item \textit{Breakpoint trapping} - By inserting a debugging breakpoint in the function we wish to intercept, we can have the debug exception handler reroute to a profiling routine. This involves a separate process (the Windows debugger) and it has the downside of suspending all application threads.
+\end{itemize}
+More than that, they compare these techniques with their interception implementation and show that the overhead varies from 250ns to 400ns with call replacement and DLL redirection, while breakpoint trapping has an overhead on the order of microseconds. If we add to this the fact that the profiling routine itself induces overhead, along with the fact that it proves to be not-trivial to implement and sometimes even intrusive, we can conclude that overloading the memory allocation routines in order to obtain live heap information is not a viable solution.
 
 \subsubsection{On-demand memory tracking}
 \label{subsubsection:ondemandtracking}
 
-Describe counter-based and traversal-based methods
+We now take a different approach to keeping track of the amount of allocated memory, one which does not involve interfering with the allocation routines. To do that, we note that most of the data living on the heap is structured in some way. Whether it is stored in just a simple array of integers or more complex data structures, it has references to it which can be accessed to determine its size. The advantage of such an approach is that we control when the size is determined and thus implicitly control when the overhead of this computation is imposed. The idea is to trigger the computation of the data structure's size on-demand, shifting the constant overhead of overloading memory allocation routines to a one-shot significantly larger overhead which could potentially be triggered during a period of low processor utilization.
+
+The first possible way of keeping track of a data structure's size is \textit{counter-based}. This is as simple as keeping a variable which keeps track of the size that the data structure occupies, counter which is updated accordingly for each modification of said data structure. For example, an addNode function for a linked list would increment the variable with the size of the newly added node, while a removeNode function would decrement it in a similar manner. Naturally, more complex structures would require perhaps more counters and an even more careful accounting method, but the idea is the same: have a set of variables which accurately represent the size of the data structure at any point in time. The biggest advantage of this method is that it has very low overhead. The bulk of the accounting is spread between the methods which update the data structure and usually this involves only incrementing or decrementing the variables. When the information related to the data structure's size is required on-demand, all there is to do is to return the variables which contain this information, making this approach very lightweight in terms of overhead. The downsides are that it is intrusive, but, more importantly, it is very hard to maintain. Experience has shown \cite{Nethercote12} that people forget to update the profiling code when the data structure is updated, or partially update the profiling code since it is spread out in many methods that have an impact on the data structure. This leads to incorrect reporters that might not even be acknowledged as incorrect until after some serious debugging.
+
+Since the main problem with the above method was that the profiling was spread in so many places that it was hard to keep track of all of them when they needed to be updated, perhaps there is a way to aggregate all of the profiling into one place. This is the idea with \textit{traversal-based} profiling. Have one method (or several, if multiple statistics are monitored) which traverses the data structure and reports its size. This does have significantly larger overhead than the above technique, especially if the data structure is large, but it is easier to maintain. Also, let's not forget that the idea is to trigger this traversal on-demand. There are several complicating factors with this approach, such as:
+\begin{itemize}
+\item Cycles in the data structure could lead to the same memory being counted twice
+\item When using inheritance, the sub-classes must make sure not to take into account the memory of their parents again
+\item Complex structures require complex traversals which are not trivial to implement and therefore might be difficult to maintain too
+\end{itemize}
+
+Note that by using these methods we have now lost the ability to detect memory leaks. If we would have kept track of every allocation then this extension would have been possible with some effort. However, this was never the purpose of this thesis so memory leak detection is out of scope. Allocations which are done and then never freed and do not have a reference to them will still continue to live on the heap and will occupy space but will not be detected by the profiler. This is considered a programmer error and specialized tools for their detection do exist.
+
+In conclusion, both of the above methods are highly intrusive, requiring access to the source code. Counter-based profiling is the lightest of the two, but the hardest to maintain, while traversal-based has a higher overhead but better maintainability. Which one should be chosen is a matter of the project's size and priorities.
 
 \subsection{Allocation point profiling}
 \label{subsection:allocationpointprofiling}
+
+The second problem we want to solve is to be able to answer two of our initial questions: who did the allocation and what lead to the allocation being done? The answer to both of these questions is found in the stack trace from the moment the allocation is done.
 
 pldi95\_ele.ps [Machine independent executable editing]
 
