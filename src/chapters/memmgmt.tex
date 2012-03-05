@@ -17,7 +17,7 @@ Virtual memory is a mechanism used by modern operating systems in order to give 
 \label{fig:virtmem}
 \end{figure}
 
-Note that the virtual memory mechanism allows different process to share memory between each other by mapping the exact area of physical memory into possibly different areas of virtual memory and also map other devices into their address space, including files from the disk. The same virtual address in different processes can be mapped to different places, enforcing the idea of address space separation.
+Note that the virtual memory mechanism allows different process to share memory between each other by mapping the exact area of physical memory into possibly different areas of virtual memory and also map other devices into their address space, including files from the disk. The same virtual address in different processes can be mapped to different places, enforcing the idea of address space separation. The exact mechanisms which make virtual memory work and concepts such as translation lookaside buffer, paging, multi-level page tables, page replacement algorithms have been described in great detail in OS literature such as \cite{Silberschatz08}, \cite{Tanenbaum07}, \cite{Drepper07} and many more and since these exact details do not have an impact on our analysis, the reader is referred to these for more in-depth knowledge.
 
 Monitoring a process's memory thus becomes a problem of monitoring the way its virtual memory is mapped. This leads to the question of determining which area of a process's virtual memory we are interested in monitoring. Do we monitor all of it or just specific parts? In order to answer that question we first have to understand exactly how a process's virtual memory is organized.
 
@@ -42,7 +42,7 @@ The segments represented are:
 \item the stack - used for function calls, as described in section X
 \end{itemize}
 
-The text segment and static data segments (initialized and uninitialized) usually do not change in size during the lifetime of a process so they are of little interest; their size can be determined from compile time and can be reported easily. The stack and the heap, which usually grow towards each other, are constantly changing but their purpose is different. They will both help us in reaching our goal and as it will be seen in the next subchapters, ultimately we will be interested in monitoring the heap, using the stack just as a source of additional data.
+The text segment and static data segments (initialized and uninitialized) usually do not change in size during the lifetime of a process so they are of little interest; their size can be determined from compile time and can be reported easily. The stack and the heap, which usually grow towards each other, are constantly changing but their purpose is different. They will both help us in reaching our goal and, as it will be seen in the next subchapters, ultimately we will be interested in monitoring the heap, using the stack just as a source of additional data.
 
 \section{The heap}
 \label{section:heap}
@@ -61,7 +61,7 @@ An additional system call available in Linux for mapping memory is \textit{mmap}
 
 It is clear now that in order to monitor a process's memory consumption we have to either hook the above calls or provide wrappers around them. By doing either of these we can answer our original question of how much memory an allocation site is requesting. By allocation site we refer to a point in a program where one of the above routines/operators is invoked.
 
-Another interesting point worth mentioning is the problem of which area of virtual memory will be selected for mapping when one of the above routines is called. It is the job of the memory allocator to selected the locations in such a way as to minimize fragmentation, maximize cache locality and provide fast allocation and deallocation speed at the same time. These goals sometimes clash and trade-offs have to be made. Techniques such as reference counting, pooling and garbage collection are sometimes used in conjunction with allocators in order to lessen the burden of memory management from the programmer. All of these have to be taken into consideration in order to do correct memory profiling. Communication with the garbage collector, for example, might be the only way to detect when memory gets deallocated since memory is no longer explicitly released. Another example could be allocators which preallocate memory in advance so that subsequent memory allocation requests are faster. In this case we have to ask ourselves if we are interested in every mapped byte from virtual memory or just those bytes which can be potentially accessed?
+Another interesting point worth mentioning is the problem of which area of virtual memory will be selected for mapping when one of the above routines is called. It is the job of the memory allocator to selected the locations in such a way as to minimize fragmentation, maximize cache locality and provide fast allocation and deallocation speed at the same time\cite{Wilson95}. These goals sometimes clash and trade-offs have to be made. Techniques such as reference counting, pooling and garbage collection are sometimes used in conjunction with allocators in order to lessen the burden of memory management from the programmer\cite{Detlefs94}. All of these have to be taken into consideration in order to do correct memory profiling. Communication with the garbage collector, for example, might be the only way to detect when memory gets deallocated since memory is no longer explicitly released. Another example could be allocators which preallocate memory in advance so that subsequent memory allocation requests are faster. In this case we have to ask ourselves if we are interested in every mapped byte from virtual memory or just those bytes which can be potentially accessed?
 
 Memory allocators use different techniques for selecting which memory region to map when an allocation is requested, such as:
 \begin{itemize}
@@ -94,8 +94,6 @@ Let us assume we have a process whose current call chain is main()-f1()-f2(). Th
 
 The information contained in the stack at any point in time allows us to trace the call chain from the current execution point all the way to a program's entry point. Suppose that f2() in Figure \ref{fig:stacklayout} did an allocation in which we were interested. By using the stack, we are able to go back from an allocation site through as many callers as we want. This answers one of our original questions: who is responsible for allocating memory?
 
-\todo{cpumemory.pdf - What every programmer should know about memory}
 \todo{dsa.pdf - Dynamic storage allocation}
-\todo{memory.pdf - Memory management for system programmers}
 \todo{spe895.pdf - Memory allocation costs in C and C++}
 \todo{jemalloc.pdf - jemalloc description}

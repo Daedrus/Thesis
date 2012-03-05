@@ -167,10 +167,12 @@ In conclusion, both of the above methods are highly intrusive, requiring access 
 
 The second problem we want to solve is to be able to answer two of our initial questions: who did the allocation and what lead to the allocation being done? The answer to both of these questions is found in the stack trace from the moment the allocation is done.
 
-pldi95\_ele.ps [Machine independent executable editing]
-
 \subsubsection{Manual stack traversal}
 \label{subsubsection:manualstacktraversal}
+
+As we have seen in section \ref{section:stack}, the stack is where we can find information about the call chain that led to an allocation. Accessing the stack is, unfortunately, not a straight forward endeavour, mostly because each platform has subtle differences in the way the stack is implemented, which makes accessing it a bit difficult. Some compilers provide already implemented routines which hide away the details of the underlying architecture. One such example is GCC, which provides the \textit{backtrace} function. This function returns the call chain in a buffer of a given size. What it actually does behind the scenes is perform a stack walk.
+
+A piece of software which does not want to be tied to a specific compiler should not use such compiler-provided functions but instead opt to implement its own. To give an idea of the complexity of a stack walker we now present the C implementation of such a program on an x86 Linux platform.
 
 AuthoringStackWalkerForX86.pdf
 
