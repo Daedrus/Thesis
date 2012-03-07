@@ -174,15 +174,99 @@ As we have seen in section \ref{section:stack}, the stack is where we can find i
 
 A piece of software which does not want to be tied to a specific compiler should not use such compiler-provided functions but instead opt to implement its own. To give an idea of the complexity of a stack walker we now present the C implementation of such a program on an x86 Linux platform.
 
-AuthoringStackWalkerForX86.pdf
+Keeping in mind the structure of a stack frame, described in section \ref{section:stack}, we need to determine two things:
+\begin{itemize}
+\item how to jump from stack frame to stack frame
+\item how to obtain the return address from each frame, knowing that this return address is what determines the caller
+\end{itemize}
+
+Knowing only the beginning of the stack is of no use to us since we do not know how much local data has been pushed on the stack and therefore cannot determine precisely where the return address is. In this case, we can use the ebp register which is commonly used to point at the beginning of the current local data. However, we know that just above the local data lie the ebp value of the caller and the return address. Thus, to jump from stack frame to stack frame we have to follow the ebp values and to get the return address we just look at the value above the ebp on the stack.
+
+Without going into the exact implementation details, a solution that does this is shown in \ref{stackwalker}:
+\begin{lstlisting}[label=stackwalker,caption=Simple stack walker for x86]
+
+struct frame {
+        struct frame* old_fp;
+        long ip;
+};
+
+struct frame *frame, *fp;
+
+asm("movl %%ebp, %0" : "=r"(frame));
+
+fp = frame;
+
+for(; !(fp < frame) && !(fp < stack_bottom));
+      fp = (struct frame *)((long)fp->old_fp))
+   {
+       // Do something with the return address from fp->ip
+   }
+\end{lstlisting}
+
+The end result is that we can obtain a list of return addresses which can then be further used to obtain the actual names of the routines forming the call chain. Inserting the above routine in every allocation point would give us a stack trace which can be used to determine the exact call chain leading to the allocation.
+
+There are, however, several downsides to this approach. First of all it is heavily platform dependant. The above code only runs on x86, using specific GCC directives. Not only that, but it relies on the fact that the code has been compiled with frame pointers activated. Some compiler-level optimizations remove the frame pointers to reduce stack frame size and obtain a small increase in speed. Different hardware platform may have a completely different stack frame format so the code would have to be rewritten for each compiler/platform combination, leading to something that would probably be very hard to maintain. The second problem is overhead. Attaching this code to every allocation point can lead to unnecessary overhead especially if we are not interested in the associated stack traces. A better method would be to activate the stack tracing on-demand, just for those allocations in which we are interested.
 
 \subsubsection{Low overhead tracepoints}
 \label{subsubsection:lowoverheadtracepoints}
 
-fastbreak.pdf [Fast breakpoint implementation]
+The problem of low overhead tracepoints has been under discussion for a long time, especially in the context of debugging. The DTrace tool for Solaris allows probes to be inserted into a running program which have low overhead when they are disabled\cite{Cantrill04}. Such implementations have also been attempted on SPARC\cite{Kessler90} and the LTTng project had a series of tools dedicated to tracing Linux both in userspace and kernel\cite{Desnoyers09}. We will present the approach currently taken by the Linux kernel in this section.
+
+A naive implementation of an on-demand triggerable tracepoint would just check the truth value of a flag and, based on that value, either call the tracing routine or not. It could be something as simple as the code in \ref{tracepoint0}. There are some problems which stem from this such as the need of a data structure which keeps a list of all the available tracepoints and implements some naming scheme allowing the user to enable/disable them independently. The question is if there is some way to avoid the condition check so that a disabled tracepoint would have even lower overhead.
+\begin{lstlisting}[label=tracepoint0,caption=Naive tracepoint implementation]
+...
+if (tracepoint_enabled)
+	trace();
+...
+\end{lstlisting}
+
+The idea is to keep a list of all the statically defined tracepoints. In our case, since we want all allocation points to be traceable, there will be a tracepoint for each of them. This list is built by the compiler during compilation and placed in a special section in the executable which can be accessed during runtime. At the same time, tracepoints which are disabled are replaced with nop operations. To activate a tracepoint during runtime one has to lookup its address in the tracepoint table and replace the nop instruction from that address with a jump to the place in the code which calls the tracing function. The key to having this work is special compiler support for moving code which can be jumped to, but not accessed directly, out of line\cite{GCCasmgoto}. The listing from \ref{tracepoint1} shows the way this is done in the Linux kernel, along with a typical usage scenario.
+\begin{lstlisting}[label=tracepoint1,caption=Linux kernel jump label implementation]
+static __always_inline bool static_branch(struct jump_label_key *key)
+{
+        asm goto("0: nop\n\t"
+                 ".pushsection __jump_table, \"aw\" \n\t"
+                 ".balign 4 \n\t"
+                 ".long 0b, %l[l_yes], %c0 \n\t"
+                 ".popsection \n\t"
+                 : : "i" (key) : : l_yes);
+        return false;
+l_yes:
+        return true;
+}
+
+#define TRACE(name)
+        static const char
+        __tpname_##name[]
+        __attribute__((section("__tracepoints_strings"))) =
+                #name;
+
+        static struct tracepoint
+        __tracepoint_##name
+        __attribute__((section("__tracepoints"))) =
+                { 0, __tpname_##name, { 0 } };
+
+        static struct tracepoint * const
+        __tracepoint_ptr_##name
+        __attribute__((section("__tracepoints_ptrs"))) =
+                &__tracepoint_##name;
+
+        if (static_branch(&__tracepoint_##name.key))
+                trace(&__tracepoint_##name);
+\end{lstlisting}
+
+It works by inserting a nop at the label defined by \textit{0:}. In the section called \textit{\_\_jump\_table} we save the address of that label, the address of the label to jump to when the tracepoint is activated, along with a key identifying the tracepoint uniquely. Since the routine is typically used in a branch, and since it will always evaluate to false, a compiler will want to remove the code completely since it is unreachable. However, due to the jump to the \textit{l\_yes} label, it is not removed completely but moved somewhere out of line thus leaving only the nop instruction in place. We know where the code is moved because we have saved the address of the \textit{l\_yes} label, thus, in order to activate the tracepoint we have to replace the nop with a jump to that address.
+
+This implementation shows that it is possible to achieve a tracepoint implementation whose only significant overhead is related to the code size of the nops and the out of line code. The downside is the same as the stack walker's: the implementation is platform specific. In this case it might even be worse since the optimization that the GCC compiler does by moving the code out of line and allowing labels inside an assembly block might not even be possible in other compilers. Permission to modify the program's code during runtime is also required and this might not be allowed in secure environments. The main issue is thus one of maintainability and of deciding if the cost of implementing and maintaining such a solution is indeed lower than the benefit of being able to trace call chains in key points of the program.
+
+One final note to keep in mind is that the question we are asking is if it is possible to implement the above and tie it into a piece of software so that it can be used live and without damaging its performance. There are tools which already do this sort of tracing, such as DTrace mentioned above and even Valgrind so it is not an issue of implementation but rather performance and maintainability.
 
 \subsubsection{Global stack object}
 \label{subsubsection:globalstackobject}
+
+The above two solutions suffer most on the maintainability side because of their platform dependencies. The question which naturally follows is if we can abstract away those parts into something which is independent of the platform we are running on. The answer to this would be to keep our own pseudo-stack (or stacks in case of multiple threads) which is globally accessible and can be queried regarding its state at any time. We say pseudo-stack because we would only be keeping the function names in it since that is what we are interested in. To have this working, each function must call one routine at its entry point pushing its name on the stack and another at its exit point for popping. A tool which inserts these calls automatically can be created.
+
+The global stack object thus removes the need of having a stack walker. However, invoking the object for providing the call chain still requires the tracepoints and making these platform independent leads us to the naive implementation from listing \ref{tracepoint0}.
 
 \section{Test program description}
 \label{section:testprogram}

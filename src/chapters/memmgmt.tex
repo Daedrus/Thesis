@@ -93,7 +93,3 @@ The stack is used by processes to keep track of the call chain. Each time a func
 Let us assume we have a process whose current call chain is main()-f1()-f2(). The process's stack and its evolution follow something similar to Figure \ref{fig:stacklayout}.
 
 The information contained in the stack at any point in time allows us to trace the call chain from the current execution point all the way to a program's entry point. Suppose that f2() in Figure \ref{fig:stacklayout} did an allocation in which we were interested. By using the stack, we are able to go back from an allocation site through as many callers as we want. This answers one of our original questions: who is responsible for allocating memory?
-
-\todo{dsa.pdf - Dynamic storage allocation}
-\todo{spe895.pdf - Memory allocation costs in C and C++}
-\todo{jemalloc.pdf - jemalloc description}
