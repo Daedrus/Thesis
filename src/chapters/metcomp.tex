@@ -6,96 +6,100 @@ In this chapter we will focus on the description of methods used in obtaining dy
 \section{Profiling methods}
 \label{section:profilingmethods}
 
-Profiling definition.
+Profiling a computer program means analyzing its behaviour during runtime in order to obtain information that can lead to its optimization. The sought information can vary from memory usage to identifying the most commonly taken call paths, all the way down to cache misses and the use of particular processor instructions. Any interaction between the program and the OS and, consequently, the hardware, can potentially be analyzed and, based on the results, improved if possible.
 
-In this section we will describe the most common techniques used for profiling today. Some of these techniques do not target memory profiling specifically, but nevertheless they can be used for this purpose.
+We can make a first classification of profilers based upon their intrusiveness. Thus, we have intrusive profilers which modify in some way the program's instructions in order to insert code which helps with the analysis. These profilers can be classified further into those that need a program's source code to perform the analysis and those that can work on a program's binary form. Finally, we have non-intrusive profilers which require no modification of the original program.
 
-Types of profiling + short description for each.
+Another classification can be made based on the technique profilers use to collect information. We can thus have:
+\begin{itemize}
+\item \textit{code instrumentation} profilers which add or modify instructions in the original program to collect the required information
+\item \textit{statistical} profilers which work by periodically sampling the program and then extrapolate conclusions statistically
+\item \textit{performance counters} are special registers in modern processors which keep track of specific events such as cache misses. These can be used to observe behavioral patterns in programs.
+\item \textit{hardware assisted} profilers use dedicated hardware to collect and analyze information about running programs
+\item \textit{event based} profilers use predetermined hooks provided by the underlying software and hardware platforms to collect data on the running program
+\end{itemize}
 
-mprof.pdf [Memory allocation profiler for C and LISP]
+This classification is not precise as many profilers use, for example, both performance counters and code instrumentation to create more detailed profiles. In the following sections we will describe these techniques in more detail and see how and if they relate to our goal of low overhead memory allocation profiling.
 
-p28-kumar.pdf [Low overhead program monitoring and Profiling]
-
-science.pdf [Efficient dynamic program monitoring on multi-core systems]
-
+A tool for deducing memory usage behaviour based on analysis of code behaviour.
 zhao-cgo07-umi.pdf [Ubiquitous memory introspection]
 
-10.1.1.104.4146.pdf [Dise: A Programmable Macro Engine for Customizing Applications]
-
-shetty\_ibmpac04.pdf [HeapMon: memory bug detector]
-
-WRL-94-2.pdf [ATOM, system for implementing customized program analysis tools]
-
-paper.pdf [gprof - a call graph execution profiler]
-
+Trace analysis discussion
 wenke.pdf [Framework for instruction-level tracing and analysis of program executions]
-
-dynamopldi.pdf [Dynamo optimization system]
-
-10.1.1.90.5250 [Optimally profiling and tracing programs]
-
-Continuous profiling: where have all the cycles gone (paywalled, have to check liu online library)
-System support for automatic profiling and optimizatins: paywalled
 
 \subsection{Code instrumentation}
 \label{subsection:codeinstrumentation}
 
 Definition of instrumentation in general.
+Code instrumentation is the process of altering a program (by adding code or modifying existing code) in order to collect performance statistics. There are several ways in which this can be done:
+\begin{itemize}
+\item \textit{source level} instrumentation involves modifying a program's actual source code before or during compilation. Having direct access to a program's source code has the big advantage of being able to monitor application-specific statistics.
+\begin{itemize}
+\item \textit{manual} instrumentation can be done by the programmer by simply adding instructions which monitor different statistics at points of his choosing. The advantage of this approach is that it can be very fast since it requires no external tool to be run alongside the program and the inserted code can be taylored to the application's specifics so it can take advantage of things such as garbage collection runs. The disadvantage is that it requires deep knowledge of an application's source code in order to identify the points where instrumenting code should be added. Thus, it is heavily intrusive but has the advantage of potentially having very low overhead.
+\item \textit{tool assisted source level} instrumentation involves using external tools to insert instrumentation code in the program's source code. For example, through a specific language the tool could be guided to monitor the number of times a specific function has been called during a run of the program. Thus, there is a shift from the programmer actually modifying the program's source code to instructing a tool in what way it should modify the program so that the desired statistics are collected. The advantage of this approach over manual instrumentation is that no detailed knowledge of the source code is required but with this flexibility is lost. For example, monitoring complicated internal data structures might involve complex tool scripts or not even be possible at all. Another approach is to have a tool that analyzes the source code in order to indicate the best points for instrumentation code to be added. This approach has been described by Larus and Ball\cite{Ball94}.
+\item \textit{compiler assisted} instrumentation can be viewed as another form of tool-assisted instrumentation where the tool is the compiler itself. GCC has the option of adding code to a program which then allows the program to output profiling information which can be analyzed offline by a call graph profiler called gprof\cite{Graham04}. The information provided by this tool is related to the times spent in each of the program's functions and the way the functions interact with each other.
+\end{itemize}
+\item \textit{binary level} instrumentation involves modifying a program's source code in binary form offline or during runtime. The main advantage of this approach is that it does not require access to the source code so programs that do not have their source publicly available can be analyzed too. The downside is that the complexity of these tools is large since the binaries have to be carefully analyzed before they are modified. Because of this and the fact that it is very difficult to draw conclusions about an application from its executable, application-specific monitoring (such as the data structure example above, or, another example, determining how much memory a tab consumes inside a web browser) is very difficult using this approach.
+\begin{itemize}
+\item \textit{binary alteration} means modifying a program's binary before it is run. ATOM\cite{Srivastava94} is a tool which allows instrumentation code to be added to applications using only link-time information. To be more exact it is a tool for building profiling tools. It works by providing a framework for the definition of instrumentation routines and for merging these routines with the program to create an instrumented executable. The LOPI framework\cite{Kagstrom05} implements a similar solution.
+\item \textit{binary code injection} tools add code to a program while it is running. Dyninst\cite{Buck00}, for example, uses a concept known as code trampolines to perform this task. The idea is that simply replacing code in the original binary with a jump instruction to the routine that performs the profiling is not possible because of the possibility of overwriting in-use registers. Thus, the jump instruction points instead to a piece of code known as a trampoline. This piece of code has the responsability of saving the context from the jump point and restoring it after the profiling function has been executed. Several implementation schemes of this are possible such as the use of a separate mini-trampoline whose task is to execute the original replaced instruction. No matter the implementation, however, the idea of preserving the context and thus the correctness of the program remains. A similar technique called springboards has been attempted for use in kernel profiling\cite{Tamches99}. A unified solution for both userspace and kernelspace code profiling has been implemented by the DTrace tool\cite{Cantrill04}.
+\item \textit{runtime translation} is a method which involves converting a program's instructions into another representation which is more suitable for profiling. Valgrind\cite{Nethercote07} and PIN\cite{Luk05} are tools which implement this technique. Valgrind, for example, uses a method through which every register and memory value is shadowed and thus can be monitored. This allows for very powerful memory leak detectors to be implemented. The downside to the code conversion is that it incurs a significant time penalty, thus, even a tool that does nothing in Valgrind (called nullgrind) slows down the program significantly enough that it cannot be used for live analysis \cite{Newsome05}.
+\end{itemize}
+\end{itemize}
 
-Types of instrumentation + description for each of them.
+Present paper as trying to optimize instrumentation so that it has lower overhead.
+p28-kumar.pdf [Low overhead program monitoring and Profiling]
 
-Give examples of tools and how they work.
+Present the article as directly treating the issue of memory allocation profiling.
+mprof.pdf [Memory allocation profiler for C and LISP]
 
-valgrind2007.pdf [How Valgrind works]
-
-shadow-memory.pdf [How to shadow every byte of memory]
-
-a5-venkataramani.pdf [MemTracker, tool based on PIN]
-
-interact-9\_IEEE\_23210082 [Automatic Low overhead instrumentation using the LOPI Framework]
-
-Tamches99FineGrained.pdf [Fine-grained dynamic instrumentation of kernels]
-
-apiPreprint.pdf [An API for Runtime Code Patching]
-
-phd2004.pdf [Nethercote dynamic instrumentation phd]
-
-derek-phd-thesis [Efficient, transparent, comprehensive runtime code manipulation]
-
-dtrace\_usenix [Dynamic instrumentation of production systems]
-
-10.1.1.85.4883 [PIN, building customized program analysis tools with dynamic instrumentation]
-
+This presents some improvements on the translation part.
 VEE2006.pdf [HDTrans, low-leve dynamic instrumentation system]
-
-Reversible debugging using program instrumentation - paywalled
 
 \subsection{Statistical profiling}
 \label{subsection:statisticalprofiling}
 
-Definition of statistical profiling.
+Another technique used in profiling is to periodically sample the statistics we are interested in. For example, every X miliseconds, the program can be stopped and its stack trace can be inspected. By doing this  multiple times, we can deduce how much time the program spends in every routine. Of course, the precision of this approach is given by the frequency of the sampling. The downside is that the overhead increases with frequency.
 
-How it works.
+There exist different approaches to how the sampling can be done:
+\begin{itemize}
+\item \textit{period sampling} is the simplest method, where the period is chosen randomly and then modified empirically until a good balance between overhead and results has been reached. This approach has been used by Whaley\cite{} to implement a profiler for Java virtual machines which focuses on an efficienty way of organizing and storing stack trace information.
+\item \textit{bursty tracing} uses two variables: one which specifies the sampling rate and another to specify how long the sampling should last. It is used in conjunction with instrumented code which is only executed when sampling is enabled. Adaptive versions of this have multiple sampling rates and durations for different code areas in order to selectively control the analysis frequency of those areas which are considered to be more important. Chilimbi and Hauswirth\cite{Hauswirth04} have used this approach in order to implement memory leak detection by using a tree-based heap model which stores information about access frequency of objects on the heap. This access frequency is updated through sampling-enabled instrumentation code. Objects which have not been accessed in a long time (either because they truly have not been accessed or the sampling missed their accesses) are reported. The idea of using two versions of the code and switching between them based on a sampling rate was originally presented by Arnold and Ryder\cite{Arnold01}.
+\item \textit{stride based sampling} uses three parameters: one for the sampling rate, one to specify a count-down mechanism for sampling every n-th method call (the stride) and another one to give the length of the profiling window. The sampling rate is usually determined by a timer, eliminating the need of maintaining a counter. This approach has been used by Arnold and Grove\cite{Arnold05} to implement call graph profiling in virtual machines.
+\end{itemize}
 
-Examples of tools.
+Tools which rely on statistical profiling for some of the information they provide are AMD CodeAnalyst, Intel VTune and gprof, which we presented eariler in code instrumentation. Gprof actually uses sampling to determine the time spent in certain functions while it uses counting based instrumentation methods to keep track of how often a certain function has been called.
 
-swat\_asplos\_final.pdf [Leak detection using statistical profiling]
-
-dcs-tr-424.pdf [Reducing the cost of instrumented code]
+Using sampling in order to determine the exact memory consumption of a program would mean sampling a number of allocations for a certain period of time and then deducing the total number of bytes used from those allocations. There is the possibility of the profiling window completely missing important allocations so precise calculations are not possible. It would be possible to determine the average number of allocated bytes per unit of time and then draw conclusions from that but again, we are interested in byte-level precision. However, as later subchapters show, there is a role that sampling based profiling plays in our goal and that is to determine how often we should trigger computations which aid in determining a program's running size.
 
 \subsection{Performance counters}
 \label{subsection:performancecounters}
 
 What they are, how they are used. Examples from modern x86 architectures maybe. Oprofile et. al.
 
-pap182.pdf [Memory profiling using hardware counters.]
+Performance counters are special registers found on modern platforms which keep track of CPU cycles, completed instructions, instruction cache misses, data cache misses, TLB misses and many more. They either count events or cycles so, for example, cache counters usually come in both forms, one for keeping the number of cache misses and another for keeping the total number of cycles lost due to these misses. Some architectures provide counters which are configurable. These counters are not tied to monitoring a specific event but they can be configured to monitoring any event from a pre-determined list.
 
-papi-ugc2001.pdf [PAPI cross-platform interface to hardware performance counters]
+Itzkowitz and Wylie\cite{Itzkowitz03} describe the difficulties of using performance counters, including a solution for handling their overflow. They provide an implementation of a data collector and analyzer which ties performance counters' values with discrete instructions from a given program.
 
-\subsubsection{Hardware-assisted profiling}
-\label{subsubsection:hardwareassistedprofiling}
+London and Moore have proposed a unified framework for cross-platform hardware performance counters accessibility\cite{London01}. This framework aims to abstract away the low-level details of accessing the counters and to provide their values in a uniformy way across different platforms.
 
-Not the same as performance counters. This one actually uses dedicated hardware to monitor different stuff rather than simple counters.
+While these counters by themselves provide very little information directly related to memory allocations they can be used as data which drives other tools to implement memory optimizations. For example, Tikir and Hollingsworth\cite{Tikir04} used such counters to profile the memory access behaviour of an application and then based on this profile, move the most frequently accessed memory pages into caches closer to the processor.
+
+Mention oprofile.
+
+\subsection{Hardware-assisted profiling}
+\label{subsection:hardwareassistedprofiling}
+
+One step forward from performance counters is to have complex dedicated hardware components which aid the profiling process. Rather than being just simple counters, these hardware components can range from simple auxiliary microprocessors to completely using existing processors from multi-core architectures for profiling purposes.
+
+Combination of hardware and software for program monitoring.
+science.pdf [Efficient dynamic program monitoring on multi-core systems]
+
+Yet another software hardware combination.
+10.1.1.104.4146.pdf [Dise: A Programmable Macro Engine for Customizing Applications]
+
+HW SW approach for detecting memory leaks.
+shetty\_ibmpac04.pdf [HeapMon: memory bug detector]
 
 venkataramani\_hpca07.pdf [hardware for memory access monitoring and debugging]
 
@@ -111,6 +115,9 @@ profiler.hpca.pdf [A programmable co-processor for profiling]
 \label{subsection:eventbasedprofiling}
 
 Events are triggered either through software or hardware exceptions. Give examples of how these might be used.
+
+Describes a device driver which interecepts interrupts to collect statistics.
+Continuous profiling: where have all the cycles gone
 
 \section{Heap profiling}
 \label{section:heapprofiling}
