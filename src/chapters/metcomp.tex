@@ -21,11 +21,11 @@ Another classification can be made based on the technique profilers use to colle
 
 This classification is not precise as many profilers use, for example, both performance counters and code instrumentation to create more detailed profiles. In the following sections we will describe these techniques in more detail and see how and if they relate to our goal of low overhead memory allocation profiling.
 
-A tool for deducing memory usage behaviour based on analysis of code behaviour.
-zhao-cgo07-umi.pdf [Ubiquitous memory introspection]
+%A tool for deducing memory usage behaviour based on analysis of code behaviour.
+%zhao-cgo07-umi.pdf [Ubiquitous memory introspection]
 
-Trace analysis discussion
-wenke.pdf [Framework for instruction-level tracing and analysis of program executions]
+%Trace analysis discussion
+%wenke.pdf [Framework for instruction-level tracing and analysis of program executions]
 
 \subsection{Code instrumentation}
 \label{subsection:codeinstrumentation}
@@ -47,14 +47,14 @@ Code instrumentation is the process of altering a program (by adding code or mod
 \end{itemize}
 \end{itemize}
 
-Present paper as trying to optimize instrumentation so that it has lower overhead.
-p28-kumar.pdf [Low overhead program monitoring and Profiling]
+%Present paper as trying to optimize instrumentation so that it has lower overhead.
+%p28-kumar.pdf [Low overhead program monitoring and Profiling]
 
-Present the article as directly treating the issue of memory allocation profiling.
-mprof.pdf [Memory allocation profiler for C and LISP]
+%Present the article as directly treating the issue of memory allocation profiling.
+%mprof.pdf [Memory allocation profiler for C and LISP]
 
-This presents some improvements on the translation part.
-VEE2006.pdf [HDTrans, low-leve dynamic instrumentation system]
+%This presents some improvements on the translation part.
+%VEE2006.pdf [HDTrans, low-leve dynamic instrumentation system]
 
 \subsection{Statistical profiling}
 \label{subsection:statisticalprofiling}
@@ -75,49 +75,31 @@ Using sampling in order to determine the exact memory consumption of a program w
 \subsection{Performance counters}
 \label{subsection:performancecounters}
 
-What they are, how they are used. Examples from modern x86 architectures maybe. Oprofile et. al.
-
 Performance counters are special registers found on modern platforms which keep track of CPU cycles, completed instructions, instruction cache misses, data cache misses, TLB misses and many more. They either count events or cycles so, for example, cache counters usually come in both forms, one for keeping the number of cache misses and another for keeping the total number of cycles lost due to these misses. Some architectures provide counters which are configurable. These counters are not tied to monitoring a specific event but they can be configured to monitoring any event from a pre-determined list.
 
 Itzkowitz and Wylie\cite{Itzkowitz03} describe the difficulties of using performance counters, including a solution for handling their overflow. They provide an implementation of a data collector and analyzer which ties performance counters' values with discrete instructions from a given program.
 
 London and Moore have proposed a unified framework for cross-platform hardware performance counters accessibility\cite{London01}. This framework aims to abstract away the low-level details of accessing the counters and to provide their values in a uniformy way across different platforms.
 
-While these counters by themselves provide very little information directly related to memory allocations they can be used as data which drives other tools to implement memory optimizations. For example, Tikir and Hollingsworth\cite{Tikir04} used such counters to profile the memory access behaviour of an application and then based on this profile, move the most frequently accessed memory pages into caches closer to the processor.
+While these counters by themselves provide very little information directly related to memory allocations, they can be used as data which drives other tools to implement memory optimizations. For example, Tikir and Hollingsworth\cite{Tikir04} used such counters to profile the memory access behaviour of an application and then based on this profile, move the most frequently accessed memory pages into caches closer to the processor. However, while it is possible to use performance counters to determine an application's memory profile, information directly related to allocation sizes and points is usually found at layers above the hardware level. Thus, their use in precisely determining allocation information is limited.
 
-Mention oprofile.
+OProfile is a tool which allows fine-grained hardware counter monitoring on Linux. It combines access to a wide array of counters on different platforms with statistical profiling to allow from instruction-level up to function-level profiling.
 
 \subsection{Hardware-assisted profiling}
 \label{subsection:hardwareassistedprofiling}
 
 One step forward from performance counters is to have complex dedicated hardware components which aid the profiling process. Rather than being just simple counters, these hardware components can range from simple auxiliary microprocessors to completely using existing processors from multi-core architectures for profiling purposes.
 
-Combination of hardware and software for program monitoring.
-science.pdf [Efficient dynamic program monitoring on multi-core systems]
+Different hardware approaches have been implemented to aid application profiling: Raksha\cite{Dalton07} and Flexitaint\cite{Venkataramani08} implement memory taint propagation tracking for security purposes while MemTracker\cite{Venkataramani07} and HeapMon\cite{Shetty06} detect memory access bugs. With the increasing ubiquity of multi-core architectures, proposals for dedicating one of the cores to profiling have emerged: Chen, Shimin and Falsafi\cite{Chen06} suggest a Log Based Architecture in which a capture is done of a program's trace and then it is sent to an idle core for interpretation while He and Zhai\cite{He_ex} propose a hardware based extraction logic which is software configurable.
 
-Yet another software hardware combination.
-10.1.1.104.4146.pdf [Dise: A Programmable Macro Engine for Customizing Applications]
-
-HW SW approach for detecting memory leaks.
-shetty\_ibmpac04.pdf [HeapMon: memory bug detector]
-
-venkataramani\_hpca07.pdf [hardware for memory access monitoring and debugging]
-
-LBA\_ISCA08.pdf [Flexible Hardware Acceleration for Instruction-Grain Program Monitoring]
-
-LBA\_asid2006.pdf [Log-Based architectures for general-purpose monitoring of deployed code]
-
-tacodec04.pdf [Architectural support for dynamic monitoring]
-
-profiler.hpca.pdf [A programmable co-processor for profiling]
+The main problem with having dedicated hardware for profiling is that it is not commonly available and, for now, the need of introducing such hardware in commodity products is not that high since traditional software profiling and debugging techniques give acceptable results. Even dedicating existing cores to profiling is not common since it involves a lot of work in getting the inter-core communication to function properly and the benefits are minimal. It would be possible to figure out the memory consumption of a process by inspecting the contents of an address space aware memory management unit's page tables and the contents of an existing hardware stack. Fast and unintrusive access to these is required so that profiling does not interfere with their normal functioning. There exist many possible approaches to this but it is, for now, economically unsound to spend time analyzing them, given the current situation of commodity hardware. There are signs though that this is the direction we are heading towards, with the increasing number of performance counters available in today's hardware, so perhaps in the future such dedicated hardware will not be uncommon.
 
 \subsection{Event-based profiling}
 \label{subsection:eventbasedprofiling}
 
-Events are triggered either through software or hardware exceptions. Give examples of how these might be used.
+Finally, we mention profiling based on the triggering of certain events. These events can be either software or hardware and are usually provided by the environment without the possibility of modification. Software events are usually implemented as hooks into key points of an existing application, in which a profiler can insert its own code. For example, important routines involved in the processing of a network packet such as receiving and sending can provide hooks which allow monitoring the total number of sent packets or even their modification. The most common hardware events are interrupts and they can be intercepted with help of hooks provided by the operating system.
 
-Describes a device driver which interecepts interrupts to collect statistics.
-Continuous profiling: where have all the cycles gone
+The main downside of using this type of profiling is that the events are preconfigured and adding new types of events requires heavy modification of the software or hardware platform which is not always feasible or possible. Moreover, the information passed to the hooks or callbacks might not be adequate for all but the most simplest of analyses.
 
 \section{Heap profiling}
 \label{section:heapprofiling}
