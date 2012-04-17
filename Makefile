@@ -17,6 +17,8 @@ images:
 	epstopdf $(IMG_DIR)/virtmem.eps
 	epstopdf $(IMG_DIR)/virtmemlayout.eps
 	epstopdf $(IMG_DIR)/stacklayout.eps
+	epstopdf $(IMG_DIR)/allocationsizewithlogging.eps
+	epstopdf $(IMG_DIR)/allocationsizewithoutlogging.eps
 
 .PHONY: clean-tmp
 clean-tmp:
