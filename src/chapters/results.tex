@@ -35,9 +35,42 @@ Second, to determine the overhead of obtaining stack traces, we test the followi
 \item \textit{External library (libunwind)} - an existing library which abstracts away all the details of the stack and provides a simple way of accessing it
 \end{enumerate}
 
+Running the basic program under Valgrind with the "none" tool performs approximately 5 times worse than without Valgrind. To be more specific, the average runtime of the Valgrind run, doing 120000 allocations of 128 bytes is around 146 milliseconds while the basic run has an average runtime of 27 milliseconds. This performance ratio holds for other number of allocations and sizes. The "none" tool does no work at all so it is a good way to measure the overhead of Valgrind's code translation overhead. Since this overhead is significantly higher than the above mentioned approaches, we will not take Valgrind into consideration for determining allocation sizes and allocation points.
+
 \section{Allocation size overhead results}
-\label{section:testprogram}
+\label{section:allocsz}
+
+One problem when comparing the two main methods of obtaining allocation sizes is to make sure that the results we obtain are the same so that the work can be fairly compared. Taking a closer look at these methods we observe that on-demand data structure traversal has a simple yet very important advantage over overloading the allocation routines: easy association between the data structures and their size. Our simple scenario has us incrementing a global variable which keeps track of the total amount of allocated memory so we don't need such an association. The initial purpose was however to provide a more granular memory reporting solution. To make the comparison more fair, code that walks the entire stack manually has been inserted in the overloaded allocation routines. This information would then theoretically be used to provide an accurate location of where the allocation was made.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=1.0\textwidth]{src/img/allocationsizewithoutlogging}
+\caption{Time overhead compared to the basic scenario when no logging is done}
+\label{fig:allocszwithoutlog}
+\end{figure}
+
+\begin{figure}[htb]
+\centering
+\includegraphics[scale=0.5, width=\textwidth]{src/img/allocationsizewithlogging}
+\caption{Time overhead compared to the basic scenario when logging is done}
+\label{fig:allocszwithlog}
+\end{figure}
+
+In figure \ref{fig:allocszwithoutlog} we can see that the overhead of overloading is lower than the traversal's when we only increment/decrement the global variable. This is explained by the fact that the traversal involves sequential access through each list element which in turn generates extra page faults and cache misses. The overhead of these additional memory accesses is thus higher at this point than the work done inside the overloaded allocation routines. In figure \ref{fig:allocszwithlog} however, we can see that this is no longer true when we add the stack walking. The conclusion to be drawn from this is that the actual mechanisms used to obtain the allocation size information are not the ones inducing the overhead but rather the work performed inside these mechanisms. Since a lot of work needs to be done in the overloaded allocation routines in order to correctly identify the place where the allocation was made, they do perform worse than the traversal techniques.
+
+* Perhaps a graph with exact Valgrind overhead related to number of allocations
 
 \section{Allocation point overhead results}
-\label{section:testprogram}
+\label{section:allocpt}
+
+* Perhaps a graph that shows overhead related to how deep you go in the stack
+
+\section{Other issues}
+\label{section:otherissues}
+
+There are other issues which the tests do not tackle, yet they are for a complete solution:
+\begin{enumerate}
+\item \textit{Information storage and analysis} - The test programs use a circular, fixed size buffer for storing the stack traces up to a certain depth. This solution has to be extended to add allocation size information and to allow grouping of stack traces. Two allocations made from the same point have the same stack trace and thus the size should be modified accordingly. Exactly how much of the stack trace is to be compared for equality is another discussion. A shallow comparison of just a couple of stack frames from the trace might not be too useful if the allocations are done in a number of function calls larger than the analysis depth. A specialized allocator might be such an implementation and a shallow analysis would just reveal how the allocator works when in fact we are interested in determining who called the allocator. Another related problem is where this analysis should be performed.
+\item \textit{Concurrency} - Each thread has its own stack
+\end{enumerate}
 
