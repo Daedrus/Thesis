@@ -45,14 +45,14 @@ One problem when comparing the two main methods of obtaining allocation sizes is
 \begin{figure}[htb]
 \centering
 \includegraphics[width=1.0\textwidth]{src/img/allocationsizewithoutlogging}
-\caption{Time overhead compared to the basic scenario when no logging is done}
+\caption{Allocation size time overhead compared to the basic scenario when no logging is done}
 \label{fig:allocszwithoutlog}
 \end{figure}
 
 \begin{figure}[htb]
 \centering
 \includegraphics[scale=0.5, width=\textwidth]{src/img/allocationsizewithlogging}
-\caption{Time overhead compared to the basic scenario when logging is done}
+\caption{Allocation size time overhead compared to the basic scenario when logging is done}
 \label{fig:allocszwithlog}
 \end{figure}
 
@@ -63,7 +63,31 @@ In figure \ref{fig:allocszwithoutlog} we can see that the overhead of overloadin
 \section{Allocation point overhead results}
 \label{section:allocpt}
 
-* Perhaps a graph that shows overhead related to how deep you go in the stack
+In figure \ref{fig:allocpoint} the time overhead of the allocation point determination is shown. While it may seem that the malloc hooks provide the best solution, it has to be mentioned that they only provide the caller of the malloc routine which makes them useless for practical purposes. For the hooks to provide the same amount of information as the other methods, they would have to be augmented with a similar stack walking routine which would put them on the same overhead level as the manual walking method.
+
+Comparing the global stack object with manual stack walking we can see that the former appears to be significantly better. There is one small catch related to the global stack object and that is its behaviour in a multithreaded environment. Multiple buffers are required, one for each thread. Additional code has to be added to check which thread has called the current function, in order to determine in which buffer the trace will be placed. Another disadvantage is that every method has to be augmented at entry and exit points with calls to the object's logging method. This could be done before compile time, by an automatic script. That being said, calls are expensive so inlining might be a solution, at the expense of increased code size.
+
+Finally, using libunwind has such a high overhead that when the results get added to the graph, the other three methods' plot points degenerate into a line. It has thus been omitted from the graph but the method does have its merits. Such a library represents the most portable way of implementing allocation point tracing. Being able to ignore all the low-level details and use a common interface for all of them represents a huge benefit which might make this method suitable if the performance hit is acceptable to the application.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[scale=0.5, width=\textwidth]{src/img/allocationpoint}
+\caption{Allocation point time overhead compared to the basic scenario}
+\label{fig:allocpoint}
+\end{figure}
+
+All of the above methods have some overhead, so the question is if we can minimize that overhead no matter what method we choose. The first observation we can make is that in the method analysis we have tried to obtain stack traces at each and every allocation the program makes. While this does provide a complete view of an application's memory usage characteristics it is unnecessary for analysis targeting memory spikes and high memory consumption, which is what we are interested in. The typical usage scenario of the profiler we want is the following:
+
+\begin{enumerate}
+\item Have a complete view of the memory consumption of different modules in the application
+\item Observe one or more modules which show an unusually high memory consumption
+\item Trigger more in-depth analysis of those modules by showing the most frequently called allocations done inside the module
+\item Enable stack trace logging only for those allocations which are frequently called
+\end{enumerate}
+
+By doing the above we can see the call chain which leads to frequent allocations and identify points which can be optimized for better performance.
+
+This is the part where the low-overhead tracepoints come into play. Each allocation routine can have such a tracepoint attached which is disabled by default, by being a noop. The tracepoint, when enabled, does a jump to a routine which either does a simple call count or a full-fledged stack trace, depending on a flag. The enabling of these tracepoints is done entirely on-demand, thus avoiding the overhead of having all the allocation routines do stack trace logging. Combining the tracepoints with any of the allocation point methods above, leads to a lightweight solution that is, however, platform specific and not easily implementable.
 
 \section{Other issues}
 \label{section:otherissues}
