@@ -10,6 +10,8 @@ In order to keep things simple and focus on the techniques and not on what the p
 
 Most programs have memory usage patterns containing a mix of allocations and deallocations. Having a test program which contains just allocations would not be representative for the majority of these patterns. Thus, we introduce the capability of deallocating some of the allocated memory through a simple counter which triggers the release of a previously allocated memory region. In the end, the core loop of the test program has the following pseudocode, where capitalized variables are given by the user:
 
+\newpage
+
 \begin{lstlisting}[label=pseudotest, caption=Test program core loop]
 for NR_ITERATIONS do
 	for size = START_SIZE, size < END_SIZE, size += STEP_SIZE
@@ -58,8 +60,6 @@ One problem when comparing the two main methods of obtaining allocation sizes is
 
 In figure \ref{fig:allocszwithoutlog} we can see that the overhead of overloading is lower than the traversal's when we only increment/decrement the global variable. This is explained by the fact that the traversal involves sequential access through each list element which in turn generates extra page faults and cache misses. The overhead of these additional memory accesses is thus higher at this point than the work done inside the overloaded allocation routines. In figure \ref{fig:allocszwithlog} however, we can see that this is no longer true when we add the stack walking. The conclusion to be drawn from this is that the actual mechanisms used to obtain the allocation size information are not the ones inducing the overhead but rather the work performed inside these mechanisms. Since a lot of work needs to be done in the overloaded allocation routines in order to correctly identify the place where the allocation was made, they do perform worse than the traversal techniques.
 
-* Perhaps a graph with exact Valgrind overhead related to number of allocations
-
 \section{Allocation point overhead results}
 \label{section:allocpt}
 
@@ -92,9 +92,15 @@ This is the part where the low-overhead tracepoints come into play. Each allocat
 \section{Other issues}
 \label{section:otherissues}
 
-There are other issues which the tests do not tackle, yet they are for a complete solution:
+There are other issues which the tests do not tackle, yet they are important for a complete solution:
 \begin{enumerate}
-\item \textit{Information storage and analysis} - The test programs use a circular, fixed size buffer for storing the stack traces up to a certain depth. This solution has to be extended to add allocation size information and to allow grouping of stack traces. Two allocations made from the same point have the same stack trace and thus the size should be modified accordingly. Exactly how much of the stack trace is to be compared for equality is another discussion. A shallow comparison of just a couple of stack frames from the trace might not be too useful if the allocations are done in a number of function calls larger than the analysis depth. A specialized allocator might be such an implementation and a shallow analysis would just reveal how the allocator works when in fact we are interested in determining who called the allocator. Another related problem is where this analysis should be performed.
-\item \textit{Concurrency} - Each thread has its own stack
+\item \textit{Information storage and analysis} - The test programs use a circular, fixed size buffer for storing the stack traces up to a certain depth. This solution has to be extended to add allocation size information and to allow grouping of stack traces. Two allocations made from the same point have the same stack trace and thus the size should be modified accordingly. Exactly how much of the stack trace is to be compared for equality is another discussion. A shallow comparison of just a couple of stack frames from the trace might not be too useful if the allocations are done in a number of function calls larger than the analysis depth. A specialized allocator might be such an implementation and a shallow analysis would just reveal how the allocator works when in fact we are interested in determining who called the allocator.
+
+Another related problem is where this analysis should be performed. If it is performed at the allocation points we run into the risk of very large overhead. Another approach is to simply add everything into the data structure which holds the traces and let the visualisation component handle the analysis. This way, it gets triggered on-demand and incurs less overhead.
+
+We can also ask ourselves how long should the information be stored? Do we just keep the N most recent stack traces or do we keep all the traces since the program has started? It depends on what type of analysis is done. If we want to be able to track visually the memory consumption and just make sure that everything is in acceptable parameters, a shorter history can be kept. This, however, has the danger of missing memory spikes, where memory consumption increases rapidly but it is not noticed. Here, a longer history is required, to be used by analysis tools and not just for visual inspection. Naturally, the longer the history, the more memory it consumes and writing information to disk very often has a very large time penalty since I/O is inherently slow. A middle ground is required, where the data is dumped periodically on disk or during low activity times.
+
+\item \textit{Concurrency} - Different threads use different stacks and the analysis needs to take this into consideration. Moreover, the data structure holding the traces now needs to be locked to protect it from simultaneous access from multiple threads trying to push stack traces. The visualiser also needs to fetch data from the data structure and thus has to lock it completely to make sure that it is not modified while being read. This scenario can be described as a multiple writers, one reader situation.
+
 \end{enumerate}
 
