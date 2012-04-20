@@ -5,10 +5,7 @@ MAIN=thesis.tex
 build: thesis.pdf clean-tmp
 
 thesis.pdf: images
-	pdflatex $(MAIN)
-	bibtex thesis.aux
-	pdflatex $(MAIN)
-	pdflatex $(MAIN)
+	rubber -sd -Wall $(MAIN)
 
 # Make this more generic
 images:
